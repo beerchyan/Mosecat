@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mosecat Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="app" v-cloak class="page">
+    <section class="auth-shell" v-if="!isAuthenticated">
+      <div class="auth-card">
+        <p class="eyebrow">Mosecat</p>
+        <h1>实时房间聊天</h1>
+        <p class="auth-desc">JWT 认证 + Socket.IO 事件 + SQLite 历史记录</p>
+
+        <div class="tab-row">
+          <button
+            type="button"
+            class="btn btn-tab"
+            :class="{ active: authMode === 'login' }"
+            @click="switchAuthMode('login')"
+          >
+            登录
+          </button>
+          <button
+            type="button"
+            class="btn btn-tab"
+            :class="{ active: authMode === 'register' }"
+            @click="switchAuthMode('register')"
+          >
+            注册
+          </button>
+        </div>
+
+        <form v-if="authMode === 'login'" class="form-block" @submit.prevent="login">
+          <label class="field-label">用户名</label>
+          <input v-model.trim="loginForm.username" class="input" maxlength="20" autocomplete="username">
+          <label class="field-label">密码</label>
+          <input v-model="loginForm.password" class="input" type="password" minlength="6" autocomplete="current-password">
+          <p class="form-error" v-if="errors.login">{{ errors.login }}</p>
+          <button type="submit" class="btn btn-primary">登录并进入</button>
+        </form>
+
+        <form v-else class="form-block" @submit.prevent="register">
+          <label class="field-label">用户名</label>
+          <input v-model.trim="registerForm.username" class="input" maxlength="20" autocomplete="username">
+          <label class="field-label">密码</label>
+          <input v-model="registerForm.password" class="input" type="password" minlength="6" autocomplete="new-password">
+          <label class="field-label">确认密码</label>
+          <input v-model="registerForm.confirmPassword" class="input" type="password" minlength="6" autocomplete="new-password">
+          <p class="form-error" v-if="errors.register">{{ errors.register }}</p>
+          <button type="submit" class="btn btn-primary">注册并进入</button>
+        </form>
+      </div>
+    </section>
+
+    <section
+      class="workspace"
+      v-else
+      :class="{
+        'mobile-focus': isMobileView && currentRoomId && !isSidebarVisible,
+        'sidebar-collapsed': !isSidebarVisible
+      }"
+    >
+      <aside ref="sidebarPanel" class="sidebar" :class="{ hidden: !isSidebarVisible }">
+        <header class="profile-card">
+          <p class="profile-label">当前用户</p>
+          <h2>{{ currentUser }}</h2>
+          <button type="button" class="btn btn-secondary" @click="logout">退出登录</button>
+        </header>
+
+        <section class="panel">
+          <h3>创建房间</h3>
+          <form class="form-block compact" @submit.prevent="createRoom">
+            <label class="field-label">房间名</label>
+            <input v-model.trim="createRoomForm.name" class="input" maxlength="50" placeholder="例如：技术分享">
+            <label class="field-label">描述</label>
+            <textarea v-model.trim="createRoomForm.description" class="input textarea" maxlength="200" placeholder="可选"></textarea>
+            <p class="form-error" v-if="errors.createRoom">{{ errors.createRoom }}</p>
+            <button type="submit" class="btn btn-primary">创建</button>
+          </form>
+        </section>
+
+        <section class="panel">
+          <h3>加入房间</h3>
+          <form class="form-block compact" @submit.prevent="joinRoom">
+            <label class="field-label">按房间名加入</label>
+            <input v-model.trim="joinRoomForm.name" class="input" maxlength="50" placeholder="输入已有房间名">
+            <p class="form-error" v-if="errors.joinRoom">{{ errors.joinRoom }}</p>
+            <button type="submit" class="btn btn-primary">加入</button>
+          </form>
+        </section>
+
+        <section class="panel">
+          <h3>我创建的房间</h3>
+          <p class="empty-tip" v-if="!createdRooms.length">暂无</p>
+          <ul class="room-list" v-else>
+            <li
+              v-for="room in createdRooms"
+              :key="`created-${room.id}`"
+              class="room-item"
+              :class="{ active: currentRoomId === room.id }"
+              @click="selectRoom(room, 'created')"
+            >
+              <div class="room-line">
+                <strong>{{ room.name }}</strong>
+                <span>{{ room.member_count }}人</span>
+              </div>
+              <small>{{ room.description || '无描述' }}</small>
+            </li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h3>我加入的房间</h3>
+          <p class="empty-tip" v-if="!joinedRooms.length">暂无</p>
+          <ul class="room-list" v-else>
+            <li
+              v-for="room in joinedRooms"
+              :key="`joined-${room.id}`"
+              class="room-item"
+              :class="{ active: currentRoomId === room.id }"
+              @click="selectRoom(room, 'joined')"
+            >
+              <div class="room-line">
+                <strong>{{ room.name }}</strong>
+                <span>{{ room.member_count }}人</span>
+              </div>
+              <small>{{ room.description || '无描述' }}</small>
+              <button
+                type="button"
+                class="btn btn-danger"
+                @click.stop="leaveRoom(room.id)"
+              >
+                退出
+              </button>
+            </li>
+          </ul>
+        </section>
+      </aside>
+      <button class="btn btn-secondary sidebar-toggle" type="button" @click="toggleSidebar">
+        {{ isSidebarVisible ? '收起' : '展开' }}
+      </button>
+
+      <main class="chat-main">
+        <div class="empty-main" v-if="!currentRoomId">
+          <h2>选择一个房间开始聊天</h2>
+          <p>进入房间后可查看成员、历史记录并发送消息。</p>
+        </div>
+
+        <template v-else>
+          <header class="chat-header">
+            <div>
+              <h2>{{ currentRoomName }}</h2>
+              <p>{{ currentRoomDesc || '无描述' }}</p>
+            </div>
+            <div class="room-meta">
+              <span class="meta-pill">{{ currentRoomStatusText }}</span>
+              <span class="meta-pill">成员 {{ roomMemberCount }}</span>
+              <span class="meta-pill">在线 {{ roomOnlineCount }}</span>
+              <button class="btn btn-secondary" type="button" @click="loadRoomHistory(currentRoomId)">刷新历史</button>
+              <button class="btn btn-secondary" type="button" @click="loadRoomMembers(currentRoomId)">刷新成员</button>
+              <button
+                v-if="currentRoomStatus === 'joined'"
+                class="btn btn-danger"
+                type="button"
+                @click="leaveRoom(currentRoomId)"
+              >
+                退出房间
+              </button>
+            </div>
+          </header>
+
+          <section class="member-panel">
+            <h3>房间成员</h3>
+            <ul class="member-list">
+              <li v-for="member in roomMembers" :key="`member-${member.user_id}`">
+                <span class="dot" :class="{ online: member.online }"></span>
+                <span>{{ member.username }}</span>
+                <small>{{ member.online ? '在线' : '离线' }}</small>
+              </li>
+            </ul>
+          </section>
+
+          <section class="chat-area" ref="chatArea">
+            <article
+              v-for="item in chatMessages"
+              :key="`${item.type || 'unknown'}-${item.id || item.created_at}-${item.username || ''}`"
+              class="chat-item"
+              :class="messageClass(item)"
+            >
+              <template v-if="item.type === 'message'">
+                <p class="msg-meta">
+                  <strong>{{ item.username }}</strong>
+                  <time>{{ formatTime(item.created_at) }}</time>
+                </p>
+                <p class="msg-body">{{ item.content }}</p>
+              </template>
+              <template v-else>
+                <p class="event-text">{{ eventText(item) }}</p>
+                <time>{{ formatTime(item.created_at) }}</time>
+              </template>
+            </article>
+          </section>
+
+          <footer class="composer">
+            <textarea
+              v-model="messageInput"
+              class="input textarea composer-input"
+              maxlength="1000"
+              placeholder="输入消息，Enter 发送，Shift+Enter 换行"
+              @keydown.enter.exact.prevent="sendMessage"
+            ></textarea>
+            <button class="btn btn-primary composer-send" type="button" @click="sendMessage">发送消息</button>
+          </footer>
+        </template>
+      </main>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.4.38/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
