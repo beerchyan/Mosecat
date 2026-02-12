@@ -162,6 +162,17 @@
               <span class="meta-pill">{{ currentRoomStatusText }}</span>
               <span class="meta-pill">成员 {{ roomMemberCount }}</span>
               <span class="meta-pill">在线 {{ roomOnlineCount }}</span>
+              <span class="meta-pill">在线已准备 {{ roomOnlineReadyCount }}/{{ roomOnlineCount }}</span>
+              <button class="btn btn-secondary" type="button" @click="toggleReady">{{ readyActionText }}</button>
+              <button
+                v-if="isCurrentRoomOwner"
+                class="btn btn-primary"
+                type="button"
+                :disabled="!canStartGame"
+                @click="startGame"
+              >
+                开始游戏
+              </button>
               <button class="btn btn-secondary" type="button" @click="loadRoomHistory(currentRoomId)">刷新历史</button>
               <button class="btn btn-secondary" type="button" @click="loadRoomMembers(currentRoomId)">刷新成员</button>
               <button
@@ -182,6 +193,7 @@
                 <span class="dot" :class="{ online: member.online }"></span>
                 <span>{{ member.username }}</span>
                 <small>{{ member.online ? '在线' : '离线' }}</small>
+                <small class="ready-flag" :class="{ on: member.ready }">{{ member.ready ? '已准备' : '未准备' }}</small>
               </li>
             </ul>
           </section>

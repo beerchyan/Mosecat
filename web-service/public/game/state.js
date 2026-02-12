@@ -6,7 +6,7 @@ export const CONNECTION_STATUS = Object.freeze({
 
 const INITIAL_STATE = Object.freeze({
   screen: "home",
-  wsUrl: "ws://localhost:3001/ws",
+  wsUrl: resolveGameSocketEndpoint(),
   player: {
     nickname: ""
   },
@@ -18,8 +18,7 @@ const INITIAL_STATE = Object.freeze({
   },
   game: {
     serverState: null,
-    hint: "点击开始游戏后，将发送 joinGame。",
-    actionPayloadText: "{}"
+    hint: "进入游戏后，使用 WASD 或方向键到达终点。"
   },
   notices: []
 });
@@ -29,6 +28,23 @@ const subscribers = new Set();
 
 function cloneState(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function resolveGameSocketEndpoint() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  if (typeof window.__MOSECAT_WS_URL__ === "string" && window.__MOSECAT_WS_URL__) {
+    return window.__MOSECAT_WS_URL__;
+  }
+
+  const { protocol, hostname, port } = window.location;
+  if (port === "19924") {
+    return `${protocol}//${hostname}:19925`;
+  }
+
+  return "";
 }
 
 function publish() {
@@ -104,16 +120,6 @@ export function setReconnectAttempts(reconnectAttempts) {
   }));
 }
 
-export function setActionPayloadText(actionPayloadText) {
-  updateState((prev) => ({
-    ...prev,
-    game: {
-      ...prev.game,
-      actionPayloadText
-    }
-  }));
-}
-
 export function setGameState(serverState) {
   const hint = pickHint(serverState) || "收到 gameStateUpdate。";
   updateState((prev) => ({
@@ -142,8 +148,7 @@ export function resetGameView() {
     game: {
       ...prev.game,
       serverState: null,
-      hint: "已返回首页。",
-      actionPayloadText: "{}"
+      hint: "已返回首页。"
     }
   }));
 }

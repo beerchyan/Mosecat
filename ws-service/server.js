@@ -18,6 +18,14 @@ const io = new Server(server, {
 let db;
 const userConnections = new Map(); // 记录用户连接
 const roomMembers = new Map(); // 记录在线房间成员
+const roomReadyStates = new Map(); // 记录房间成员准备状态
+const gameRoomStates = new Map(); // 记录游戏房间状态
+
+const GAME_MAP_WIDTH = 31;
+const GAME_MAP_HEIGHT = 21;
+const PLAYER_SPEED_UNITS_PER_SEC = 0.5;
+const PLAYER_MOVE_INTERVAL_MS = Math.round(1000 / PLAYER_SPEED_UNITS_PER_SEC);
+const GAME_COLORS = ['#ff9c4d', '#5ad2ff', '#ffd95e', '#8ef0a8', '#ee8cff', '#f77a7a'];
 
 initDB(sqlite3).then((database) => {
   db = database;
@@ -57,6 +65,19 @@ io.on('connection', (socket) => {
   };
   const parseRoomId = (value) => Number.parseInt(value, 10);
   const roomKeyOf = (roomId) => String(roomId);
+  const getRoomInfo = (roomId, callback) => {
+    db.get(
+      'SELECT id, creator_id, name FROM rooms WHERE id = ?',
+      [roomId],
+      (err, room) => {
+        if (err) {
+          callback(err);
+          return;
+        }
+        callback(null, room || null);
+      }
+    );
+  };
   const isJoinedRoom = (roomId, callback) => {
     db.get(
       'SELECT id FROM room_members WHERE room_id = ? AND user_id = ?',
@@ -105,21 +126,631 @@ io.on('connection', (socket) => {
       }
     );
   };
-  const recordRoomEvent = (roomId, eventType) => {
+  const setRoomReadyState = (roomId, userId, ready) => {
+    const roomKey = roomKeyOf(roomId);
+    if (!roomReadyStates.has(roomKey)) {
+      roomReadyStates.set(roomKey, new Map());
+    }
+    roomReadyStates.get(roomKey).set(userId, !!ready);
+  };
+  const clearRoomReadyState = (roomId, userId) => {
+    const roomKey = roomKeyOf(roomId);
+    if (!roomReadyStates.has(roomKey)) {
+      return;
+    }
+    const readyMap = roomReadyStates.get(roomKey);
+    readyMap.delete(userId);
+    if (readyMap.size === 0) {
+      roomReadyStates.delete(roomKey);
+    }
+  };
+  const buildRoomLobbySnapshot = (roomId, callback) => {
+    getRoomMemberSnapshot(roomId, (memberErr, memberSnapshot) => {
+      if (memberErr) {
+        callback(memberErr);
+        return;
+      }
+
+      getRoomInfo(roomId, (roomErr, roomInfo) => {
+        if (roomErr) {
+          callback(roomErr);
+          return;
+        }
+
+        if (!roomInfo) {
+          callback(new Error('房间不存在'));
+          return;
+        }
+
+        const readyMap = roomReadyStates.get(roomKeyOf(roomId)) || new Map();
+        const members = (memberSnapshot.members || []).map((member) => ({
+          ...member,
+          ready: member.online && !!readyMap.get(member.user_id)
+        }));
+        const onlineMembers = members.filter((member) => member.online);
+        const onlineReadyCount = onlineMembers.filter((member) => member.ready).length;
+
+        callback(null, {
+          ...memberSnapshot,
+          members,
+          owner_id: Number(roomInfo.creator_id),
+          all_online_ready: onlineMembers.length > 0 && onlineReadyCount === onlineMembers.length,
+          online_ready_count: onlineReadyCount
+        });
+      });
+    });
+  };
+  const emitRoomLobbyUpdate = (roomId) => {
+    buildRoomLobbySnapshot(roomId, (snapshotErr, snapshot) => {
+      if (snapshotErr) {
+        return;
+      }
+      io.to(`room:${roomId}`).emit('room:lobby:update', snapshot);
+    });
+  };
+  const recordRoomEvent = (roomId, eventType, options = {}) => {
+    const eventContent = typeof options.content === 'string' ? options.content : null;
+    const eventUsername = typeof options.username === 'string' ? options.username : socket.username;
     db.run(
       'INSERT INTO events (room_id, type, user_id, content) VALUES (?, ?, ?, ?)',
-      [roomId, eventType, socket.userId, null],
+      [roomId, eventType, socket.userId, eventContent],
       (err) => {
         if (!err) {
           io.to(`room:${roomId}`).emit('room:event', {
             room_id: roomId,
             type: eventType,
-            username: socket.username,
+            username: eventUsername,
+            content: eventContent,
             created_at: new Date().toISOString()
           });
         }
       }
     );
+  };
+  const parseGameRoomId = (value) => {
+    const roomId = parseRoomId(value);
+    return Number.isInteger(roomId) && roomId > 0 ? roomId : null;
+  };
+  const resolveGameRoomId = (payload = {}) => {
+    return parseGameRoomId(
+      payload.room_id
+      ?? payload.roomId
+      ?? socket.handshake.query.roomId
+      ?? socket.data.gameRoomId
+    );
+  };
+  const gameRoomKeyOf = (roomId) => `game:${roomId}`;
+  const toOddSize = (value, minValue = 9) => {
+    const num = Number(value);
+    const size = Number.isInteger(num) && num >= minValue ? num : minValue;
+    return size % 2 === 0 ? size - 1 : size;
+  };
+  const createSeededRandom = (seedInput) => {
+    let seed = Number(seedInput);
+    if (!Number.isFinite(seed)) {
+      seed = Number.parseInt(String(seedInput || ''), 10);
+    }
+    if (!Number.isFinite(seed)) {
+      seed = Date.now();
+    }
+    let state = (seed >>> 0) || 1;
+    return () => {
+      state ^= state << 13;
+      state ^= state >>> 17;
+      state ^= state << 5;
+      return ((state >>> 0) / 4294967296);
+    };
+  };
+  const shuffleByRandom = (list, random) => {
+    const copy = list.slice();
+    for (let i = copy.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(random() * (i + 1));
+      const tmp = copy[i];
+      copy[i] = copy[j];
+      copy[j] = tmp;
+    }
+    return copy;
+  };
+  const generateDungeonFromSeed = (seed, width = GAME_MAP_WIDTH, height = GAME_MAP_HEIGHT) => {
+    const mapWidth = toOddSize(width);
+    const mapHeight = toOddSize(height);
+    const random = createSeededRandom(seed);
+    const grid = Array.from({ length: mapHeight }, () => Array(mapWidth).fill(1));
+    const rooms = [];
+    const roomTarget = 8 + Math.floor(random() * 5);
+    const roomAttempts = 260;
+    const roomSizeOptions = [3, 4, 5];
+    const overlaps = (a, b, margin = 1) => {
+      const aLeft = a.x - margin;
+      const aTop = a.y - margin;
+      const aRight = a.x + a.w - 1 + margin;
+      const aBottom = a.y + a.h - 1 + margin;
+      const bLeft = b.x;
+      const bTop = b.y;
+      const bRight = b.x + b.w - 1;
+      const bBottom = b.y + b.h - 1;
+      return !(aRight < bLeft || bRight < aLeft || aBottom < bTop || bBottom < aTop);
+    };
+    const carveRoom = (room) => {
+      for (let y = room.y; y < room.y + room.h; y += 1) {
+        for (let x = room.x; x < room.x + room.w; x += 1) {
+          grid[y][x] = 0;
+        }
+      }
+    };
+    const roomCenter = (room) => ({
+      x: room.x + Math.floor(room.w / 2),
+      y: room.y + Math.floor(room.h / 2)
+    });
+    const carveLine = (x1, y1, x2, y2) => {
+      if (x1 === x2) {
+        const minY = Math.min(y1, y2);
+        const maxY = Math.max(y1, y2);
+        for (let y = minY; y <= maxY; y += 1) {
+          grid[y][x1] = 0;
+        }
+        return;
+      }
+      if (y1 === y2) {
+        const minX = Math.min(x1, x2);
+        const maxX = Math.max(x1, x2);
+        for (let x = minX; x <= maxX; x += 1) {
+          grid[y1][x] = 0;
+        }
+      }
+    };
+    const carveCorridorBetweenRooms = (roomA, roomB) => {
+      const centerA = roomCenter(roomA);
+      const centerB = roomCenter(roomB);
+      const sidePriority = (() => {
+        const dx = centerB.x - centerA.x;
+        const dy = centerB.y - centerA.y;
+        if (Math.abs(dx) >= Math.abs(dy)) {
+          return dx >= 0 ? ['right', 'left', 'bottom', 'top'] : ['left', 'right', 'top', 'bottom'];
+        }
+        return dy >= 0 ? ['bottom', 'top', 'right', 'left'] : ['top', 'bottom', 'left', 'right'];
+      })();
+      const getBoundaryPoints = (room, side) => {
+        const left = room.x;
+        const top = room.y;
+        const right = room.x + room.w - 1;
+        const bottom = room.y + room.h - 1;
+        const points = [];
+        if (side === 'left' || side === 'right') {
+          const x = side === 'left' ? left : right;
+          for (let y = top + 1; y <= bottom - 1; y += 1) {
+            points.push({ x, y });
+          }
+        } else {
+          const y = side === 'top' ? top : bottom;
+          for (let x = left + 1; x <= right - 1; x += 1) {
+            points.push({ x, y });
+          }
+        }
+        // 尺寸为 3x3 时只有一个合法点；理论上不会为空，但保底取中心点。
+        if (!points.length) {
+          points.push(roomCenter(room));
+        }
+        return points;
+      };
+      const pickExit = (room, preferredSide, targetPoint) => {
+        const candidates = getBoundaryPoints(room, preferredSide);
+        let best = candidates[0];
+        let bestDist = Number.POSITIVE_INFINITY;
+        for (const point of candidates) {
+          const dist = (point.x - targetPoint.x) ** 2 + (point.y - targetPoint.y) ** 2;
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = point;
+          }
+        }
+        return best;
+      };
+
+      const exitA = pickExit(roomA, sidePriority[0], centerB);
+      const exitB = pickExit(roomB, sidePriority[1], centerA);
+      if (random() < 0.5) {
+        carveLine(exitA.x, exitA.y, exitB.x, exitA.y);
+        carveLine(exitB.x, exitA.y, exitB.x, exitB.y);
+      } else {
+        carveLine(exitA.x, exitA.y, exitA.x, exitB.y);
+        carveLine(exitA.x, exitB.y, exitB.x, exitB.y);
+      }
+    };
+
+    for (let attempt = 0; attempt < roomAttempts && rooms.length < roomTarget; attempt += 1) {
+      const roomW = roomSizeOptions[Math.floor(random() * roomSizeOptions.length)];
+      const roomH = roomSizeOptions[Math.floor(random() * roomSizeOptions.length)];
+      const area = roomW * roomH;
+      if (area < 9 || area > 25) {
+        continue;
+      }
+      const maxX = mapWidth - roomW - 1;
+      const maxY = mapHeight - roomH - 1;
+      if (maxX <= 1 || maxY <= 1) {
+        continue;
+      }
+      const x = 1 + Math.floor(random() * (maxX - 1 + 1));
+      const y = 1 + Math.floor(random() * (maxY - 1 + 1));
+      const room = { x, y, w: roomW, h: roomH };
+      if (rooms.some((placed) => overlaps(room, placed, 1))) {
+        continue;
+      }
+      rooms.push(room);
+      carveRoom(room);
+    }
+
+    if (!rooms.length) {
+      const fallback = { x: 2, y: 2, w: 3, h: 3 };
+      rooms.push(fallback);
+      carveRoom(fallback);
+    }
+
+    if (rooms.length > 1) {
+      const edgeSet = new Set();
+      const connectRooms = (i, j) => {
+        if (i === j) {
+          return;
+        }
+        const a = Math.min(i, j);
+        const b = Math.max(i, j);
+        const key = `${a}-${b}`;
+        if (edgeSet.has(key)) {
+          return;
+        }
+        edgeSet.add(key);
+        carveCorridorBetweenRooms(rooms[a], rooms[b]);
+      };
+
+      for (let i = 1; i < rooms.length; i += 1) {
+        let nearestIndex = 0;
+        let nearestDist = Number.POSITIVE_INFINITY;
+        const centerI = roomCenter(rooms[i]);
+        for (let j = 0; j < i; j += 1) {
+          const centerJ = roomCenter(rooms[j]);
+          const dist = (centerI.x - centerJ.x) ** 2 + (centerI.y - centerJ.y) ** 2;
+          if (dist < nearestDist) {
+            nearestDist = dist;
+            nearestIndex = j;
+          }
+        }
+        connectRooms(i, nearestIndex);
+      }
+
+      const extraConnections = Math.max(1, Math.floor(rooms.length / 2));
+      let extrasAdded = 0;
+      for (let attempt = 0; attempt < rooms.length * rooms.length && extrasAdded < extraConnections; attempt += 1) {
+        const i = Math.floor(random() * rooms.length);
+        const j = Math.floor(random() * rooms.length);
+        if (i === j) {
+          continue;
+        }
+        const a = Math.min(i, j);
+        const b = Math.max(i, j);
+        const key = `${a}-${b}`;
+        if (edgeSet.has(key)) {
+          continue;
+        }
+        connectRooms(a, b);
+        extrasAdded += 1;
+      }
+
+      const buildReachableSet = (origin) => {
+        const visited = new Set();
+        const queue = [origin];
+        visited.add(`${origin.x},${origin.y}`);
+        const stepDirs = [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1]
+        ];
+
+        while (queue.length) {
+          const current = queue.shift();
+          for (const [dx, dy] of stepDirs) {
+            const nx = current.x + dx;
+            const ny = current.y + dy;
+            if (nx < 0 || nx >= mapWidth || ny < 0 || ny >= mapHeight) {
+              continue;
+            }
+            if (grid[ny][nx] !== 0) {
+              continue;
+            }
+            const key = `${nx},${ny}`;
+            if (visited.has(key)) {
+              continue;
+            }
+            visited.add(key);
+            queue.push({ x: nx, y: ny });
+          }
+        }
+
+        return visited;
+      };
+
+      const ensureRoomConnectivity = () => {
+        const centers = rooms.map(roomCenter);
+        let safeguard = rooms.length * 4;
+        while (safeguard > 0) {
+          safeguard -= 1;
+          const reachable = buildReachableSet(centers[0]);
+          const connectedIndexes = [];
+          const disconnectedIndexes = [];
+          for (let i = 0; i < centers.length; i += 1) {
+            const key = `${centers[i].x},${centers[i].y}`;
+            if (reachable.has(key)) {
+              connectedIndexes.push(i);
+            } else {
+              disconnectedIndexes.push(i);
+            }
+          }
+          if (!disconnectedIndexes.length) {
+            break;
+          }
+          for (const disconnectedIndex of disconnectedIndexes) {
+            let targetIndex = connectedIndexes[0];
+            let bestDist = Number.POSITIVE_INFINITY;
+            for (const connectedIndex of connectedIndexes) {
+              const dist = (centers[disconnectedIndex].x - centers[connectedIndex].x) ** 2
+                + (centers[disconnectedIndex].y - centers[connectedIndex].y) ** 2;
+              if (dist < bestDist) {
+                bestDist = dist;
+                targetIndex = connectedIndex;
+              }
+            }
+            carveCorridorBetweenRooms(rooms[disconnectedIndex], rooms[targetIndex]);
+          }
+        }
+      };
+
+      ensureRoomConnectivity();
+    }
+
+    const getRoomInteriorPoints = (room) => {
+      const points = [];
+      for (let y = room.y + 1; y <= room.y + room.h - 2; y += 1) {
+        for (let x = room.x + 1; x <= room.x + room.w - 2; x += 1) {
+          points.push({ x, y });
+        }
+      }
+      if (!points.length) {
+        points.push(roomCenter(room));
+      }
+      return points;
+    };
+    const roomInteriorPoints = rooms.map(getRoomInteriorPoints);
+    const pickRandomPoint = (points) => points[Math.floor(random() * points.length)];
+    const startRoomIndex = Math.floor(random() * rooms.length);
+    const start = pickRandomPoint(roomInteriorPoints[startRoomIndex]) || roomCenter(rooms[startRoomIndex]);
+
+    const buildDistanceMap = (origin) => {
+      const distances = Array.from({ length: mapHeight }, () => Array(mapWidth).fill(-1));
+      const queue = [{ x: origin.x, y: origin.y, dist: 0 }];
+      distances[origin.y][origin.x] = 0;
+      const stepDirs = [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1]
+      ];
+
+      while (queue.length) {
+        const current = queue.shift();
+        for (const [dx, dy] of stepDirs) {
+          const nx = current.x + dx;
+          const ny = current.y + dy;
+          if (nx < 0 || nx >= mapWidth || ny < 0 || ny >= mapHeight) {
+            continue;
+          }
+          if (grid[ny][nx] !== 0) {
+            continue;
+          }
+          if (distances[ny][nx] >= 0) {
+            continue;
+          }
+          const nextDist = current.dist + 1;
+          distances[ny][nx] = nextDist;
+          queue.push({ x: nx, y: ny, dist: nextDist });
+        }
+      }
+
+      return distances;
+    };
+    const distanceMap = buildDistanceMap(start);
+    const selectFarthestRoomEnd = (preferDifferentRoom = true) => {
+      let bestPoint = null;
+      let bestDistance = -1;
+      for (let i = 0; i < roomInteriorPoints.length; i += 1) {
+        if (preferDifferentRoom && i === startRoomIndex) {
+          continue;
+        }
+        for (const point of roomInteriorPoints[i]) {
+          const distance = distanceMap[point.y] && distanceMap[point.y][point.x];
+          if (distance === undefined || distance < 0) {
+            continue;
+          }
+          if (distance > bestDistance) {
+            bestDistance = distance;
+            bestPoint = point;
+          }
+        }
+      }
+      return bestPoint;
+    };
+
+    const end = selectFarthestRoomEnd(true)
+      || selectFarthestRoomEnd(false)
+      || { x: start.x, y: start.y };
+    return {
+      width: mapWidth,
+      height: mapHeight,
+      start: { x: start.x, y: start.y },
+      end: { x: end.x, y: end.y },
+      map: grid,
+      rooms,
+      map_rows: grid.map((row) => row.map((cell) => (cell === 1 ? '#' : '.')).join(''))
+    };
+  };
+  const clampToMap = (roomState, x, y) => {
+    const nx = Math.max(0, Math.min(roomState.width - 1, x));
+    const ny = Math.max(0, Math.min(roomState.height - 1, y));
+    return { x: nx, y: ny };
+  };
+  const isWalkableCell = (roomState, x, y) => {
+    if (!roomState || !Array.isArray(roomState.map)) {
+      return false;
+    }
+    if (x < 0 || y < 0 || x >= roomState.width || y >= roomState.height) {
+      return false;
+    }
+    return roomState.map[y] && roomState.map[y][x] === 0;
+  };
+  const pickSpawnPoint = (roomState) => {
+    const random = createSeededRandom(roomState.seed + roomState.round + Number(socket.userId || 0));
+    const occupied = new Set(Array.from(roomState.players.values()).map((player) => `${player.x},${player.y}`));
+    const interiorCandidates = [];
+    const rooms = Array.isArray(roomState.rooms) ? roomState.rooms : [];
+    for (const room of shuffleByRandom(rooms, random)) {
+      for (let y = room.y + 1; y <= room.y + room.h - 2; y += 1) {
+        for (let x = room.x + 1; x <= room.x + room.w - 2; x += 1) {
+          interiorCandidates.push({ x, y });
+        }
+      }
+    }
+
+    for (const candidate of interiorCandidates) {
+      const key = `${candidate.x},${candidate.y}`;
+      if (occupied.has(key)) {
+        continue;
+      }
+      if (candidate.x === roomState.end.x && candidate.y === roomState.end.y) {
+        continue;
+      }
+      if (!isWalkableCell(roomState, candidate.x, candidate.y)) {
+        continue;
+      }
+      return { x: candidate.x, y: candidate.y };
+    }
+
+    for (let i = 0; i < 600; i += 1) {
+      const x = 1 + Math.floor(random() * (roomState.width - 2));
+      const y = 1 + Math.floor(random() * (roomState.height - 2));
+      if (!isWalkableCell(roomState, x, y)) {
+        continue;
+      }
+      const key = `${x},${y}`;
+      if (occupied.has(key)) {
+        continue;
+      }
+      if (x === roomState.end.x && y === roomState.end.y) {
+        continue;
+      }
+      return { x, y };
+    }
+    return { x: roomState.start.x, y: roomState.start.y };
+  };
+  const createGamePlayer = (roomState, nickname) => {
+    const spawn = pickSpawnPoint(roomState);
+    return {
+      user_id: Number(socket.userId),
+      username: socket.username,
+      nickname,
+      x: spawn.x,
+      y: spawn.y,
+      moves: 0,
+      last_move_at: Date.now(),
+      color: GAME_COLORS[Math.abs(Number(socket.userId || 0)) % GAME_COLORS.length],
+      updated_at: new Date().toISOString()
+    };
+  };
+  const getOrCreateGameRoomState = (roomId, seedValue) => {
+    const roomKey = roomKeyOf(roomId);
+    if (!gameRoomStates.has(roomKey)) {
+      const seed = Number.parseInt(seedValue, 10) || (roomId * 7919 + 97);
+      const dungeon = generateDungeonFromSeed(seed, GAME_MAP_WIDTH, GAME_MAP_HEIGHT);
+      gameRoomStates.set(roomKey, {
+        room_id: roomId,
+        seed,
+        width: dungeon.width,
+        height: dungeon.height,
+        map: dungeon.map,
+        map_rows: dungeon.map_rows,
+        rooms: dungeon.rooms,
+        start: dungeon.start,
+        end: dungeon.end,
+        round: 1,
+        phase: 'playing',
+        winner_user_id: null,
+        winner_name: '',
+        updated_at: new Date().toISOString(),
+        players: new Map()
+      });
+    }
+    return gameRoomStates.get(roomKey);
+  };
+  const hasGameRoomState = (roomId) => gameRoomStates.has(roomKeyOf(roomId));
+  const removePlayerFromGameRoom = (roomId, userId) => {
+    const roomKey = roomKeyOf(roomId);
+    if (!gameRoomStates.has(roomKey)) {
+      return;
+    }
+    const roomState = gameRoomStates.get(roomKey);
+    roomState.players.delete(userId);
+    roomState.updated_at = new Date().toISOString();
+    if (roomState.players.size === 0) {
+      gameRoomStates.delete(roomKey);
+    }
+  };
+  const buildGameStatePayload = (roomId, hintText = '') => {
+    const roomState = getOrCreateGameRoomState(roomId);
+    const players = Array.from(roomState.players.values());
+    const entities = players.map((player) => ({
+      x: player.x,
+      y: player.y,
+      color: player.color || '#ff9c4d'
+    }));
+    const leading = players.slice().sort((a, b) => Number(b.moves || 0) - Number(a.moves || 0))[0];
+
+    return {
+      room_id: roomId,
+      seed: roomState.seed,
+      width: roomState.width,
+      height: roomState.height,
+      map: roomState.map_rows,
+      end: roomState.end,
+      vision_radius: 3,
+      player_unit_size: 1,
+      player_speed_units_per_sec: PLAYER_SPEED_UNITS_PER_SEC,
+      move_interval_ms: PLAYER_MOVE_INTERVAL_MS,
+      round: roomState.round,
+      phase: roomState.phase,
+      score: leading ? Number(leading.moves || 0) : 0,
+      result: roomState.phase === 'finished'
+        ? `胜利者: ${roomState.winner_name || '未知'}`
+        : '探索中',
+      hint: hintText || '使用 WASD 或方向键移动到终点',
+      winner_user_id: roomState.winner_user_id,
+      winner_name: roomState.winner_name,
+      game_over: roomState.phase === 'finished',
+      return_delay_ms: roomState.phase === 'finished' ? 2400 : 0,
+      room_url: `/?resumeRoomId=${roomId}`,
+      players,
+      entities,
+      updated_at: roomState.updated_at
+    };
+  };
+  const emitGameStateUpdate = (roomId, hintText = '') => {
+    const payload = buildGameStatePayload(roomId, hintText);
+    io.to(gameRoomKeyOf(roomId)).emit('gameStateUpdate', payload);
+  };
+  const emitGameError = (message, callback) => {
+    const payload = { message: message || '游戏事件处理失败' };
+    socket.emit('error', payload);
+    reply(callback, { ok: false, message: payload.message });
+  };
+  const emitGameNotice = (roomId, message) => {
+    io.to(gameRoomKeyOf(roomId)).emit('notice', { message });
   };
 
   // 用户加入房间
@@ -146,9 +777,16 @@ io.on('connection', (socket) => {
           if (!roomMembers.has(roomKey)) {
             roomMembers.set(roomKey, new Set());
           }
-          roomMembers.get(roomKey).add(socket.userId);
+          const onlineMembers = roomMembers.get(roomKey);
+          const wasAlreadyOnline = onlineMembers.has(socket.userId);
+          onlineMembers.add(socket.userId);
 
-          recordRoomEvent(roomId, 'join');
+          if (!wasAlreadyOnline) {
+            setRoomReadyState(roomId, socket.userId, false);
+            recordRoomEvent(roomId, 'join');
+          }
+
+          emitRoomLobbyUpdate(roomId);
 
           console.log(`${socket.username} joined room ${roomId}`);
         }
@@ -176,8 +814,20 @@ io.on('connection', (socket) => {
         roomMembers.delete(roomKey);
       }
     }
+    clearRoomReadyState(roomId, socket.userId);
 
     recordRoomEvent(roomId, 'leave');
+    emitRoomLobbyUpdate(roomId);
+
+    if (parseGameRoomId(socket.data.gameRoomId) === roomId) {
+      socket.leave(gameRoomKeyOf(roomId));
+      socket.data.gameRoomId = null;
+      removePlayerFromGameRoom(roomId, socket.userId);
+      if (hasGameRoomState(roomId)) {
+        emitGameNotice(roomId, `${socket.username} 离开了游戏`);
+        emitGameStateUpdate(roomId, `${socket.username} 离开了游戏`);
+      }
+    }
   });
 
   // 拉取当前房间成员快照（WebSocket）
@@ -200,14 +850,285 @@ io.on('connection', (socket) => {
         return;
       }
 
-      getRoomMemberSnapshot(roomId, (snapshotErr, snapshot) => {
+      buildRoomLobbySnapshot(roomId, (snapshotErr, snapshot) => {
         if (snapshotErr) {
           reply(callback, { ok: false, message: '数据库错误' });
           return;
         }
 
-        reply(callback, { ok: true, ...snapshot });
+        reply(callback, {
+          ok: true,
+          ...snapshot,
+          is_owner: Number(snapshot.owner_id) === Number(socket.userId)
+        });
       });
+    });
+  });
+
+  // 设置准备状态（WebSocket）
+  socket.on('room:ready:set', (data, callback) => {
+    const roomId = parseRoomId(data && data.room_id);
+    const ready = !!(data && data.ready);
+
+    if (!Number.isInteger(roomId) || roomId <= 0) {
+      reply(callback, { ok: false, message: '无效的房间ID' });
+      return;
+    }
+
+    isJoinedRoom(roomId, (err, hasAccess) => {
+      if (err) {
+        reply(callback, { ok: false, message: '数据库错误' });
+        return;
+      }
+
+      if (!hasAccess) {
+        reply(callback, { ok: false, message: '无权限访问' });
+        return;
+      }
+
+      setRoomReadyState(roomId, socket.userId, ready);
+      recordRoomEvent(roomId, ready ? 'ready' : 'unready');
+      emitRoomLobbyUpdate(roomId);
+      reply(callback, { ok: true, ready });
+    });
+  });
+
+  // 房主开始游戏（WebSocket）
+  socket.on('room:game:start', (data, callback) => {
+    const roomId = parseRoomId(data && data.room_id);
+
+    if (!Number.isInteger(roomId) || roomId <= 0) {
+      reply(callback, { ok: false, message: '无效的房间ID' });
+      return;
+    }
+
+    isJoinedRoom(roomId, (err, hasAccess) => {
+      if (err) {
+        reply(callback, { ok: false, message: '数据库错误' });
+        return;
+      }
+
+      if (!hasAccess) {
+        reply(callback, { ok: false, message: '无权限访问' });
+        return;
+      }
+
+      buildRoomLobbySnapshot(roomId, (snapshotErr, snapshot) => {
+        if (snapshotErr) {
+          reply(callback, { ok: false, message: '数据库错误' });
+          return;
+        }
+
+        if (Number(snapshot.owner_id) !== Number(socket.userId)) {
+          reply(callback, { ok: false, message: '只有房主可以开始游戏' });
+          return;
+        }
+
+        if (!snapshot.all_online_ready) {
+          const unready = (snapshot.members || [])
+            .filter((member) => member.online && !member.ready)
+            .map((member) => member.username);
+          reply(callback, {
+            ok: false,
+            message: `仍有玩家未准备：${unready.join('、') || '未知玩家'}`
+          });
+          return;
+        }
+
+        const startedAt = new Date().toISOString();
+        const gameSeed = Date.now();
+        const gameUrl = `/game/?roomId=${roomId}&seed=${gameSeed}`;
+        recordRoomEvent(roomId, 'game_start', {
+          content: `${socket.username} 开始了游戏`
+        });
+        io.to(`room:${roomId}`).emit('room:game:started', {
+          room_id: roomId,
+          game_url: gameUrl,
+          game_seed: gameSeed,
+          started_by: socket.username,
+          started_at: startedAt
+        });
+        reply(callback, {
+          ok: true,
+          room_id: roomId,
+          game_url: gameUrl,
+          game_seed: gameSeed,
+          started_by: socket.username,
+          started_at: startedAt
+        });
+      });
+    });
+  });
+
+  // 加入游戏房间（Socket.IO）
+  socket.on('joinGame', (payload, callback) => {
+    const roomId = resolveGameRoomId(payload || {});
+    if (!roomId) {
+      emitGameError('无效的游戏房间ID', callback);
+      return;
+    }
+
+    isJoinedRoom(roomId, (err, hasAccess) => {
+      if (err) {
+        emitGameError('数据库错误', callback);
+        return;
+      }
+      if (!hasAccess) {
+        emitGameError('你不在这个房间，无法加入游戏', callback);
+        return;
+      }
+
+      const currentGameRoomId = parseGameRoomId(socket.data.gameRoomId);
+      if (currentGameRoomId && currentGameRoomId !== roomId) {
+        socket.leave(gameRoomKeyOf(currentGameRoomId));
+        removePlayerFromGameRoom(currentGameRoomId, socket.userId);
+        if (hasGameRoomState(currentGameRoomId)) {
+          emitGameStateUpdate(currentGameRoomId, `${socket.username} 离开了游戏`);
+        }
+      }
+
+      socket.join(gameRoomKeyOf(roomId));
+      socket.data.gameRoomId = roomId;
+
+      const roomState = getOrCreateGameRoomState(roomId, payload?.seed);
+      const nickname = typeof payload?.nickname === 'string' && payload.nickname.trim()
+        ? payload.nickname.trim().slice(0, 20)
+        : socket.username;
+      const existing = roomState.players.get(socket.userId);
+      const player = existing
+        ? {
+            ...existing,
+            username: socket.username,
+            nickname,
+            last_move_at: Number(existing.last_move_at || Date.now()),
+            updated_at: new Date().toISOString()
+          }
+        : createGamePlayer(roomState, nickname);
+
+      roomState.players.set(socket.userId, player);
+      roomState.updated_at = new Date().toISOString();
+      roomState.round += 1;
+
+      const message = `${player.nickname || socket.username} 进入地牢，前往终点`;
+      emitGameNotice(roomId, message);
+      emitGameStateUpdate(roomId, message);
+
+      reply(callback, {
+        ok: true,
+        room_id: roomId,
+        seed: roomState.seed,
+        end: roomState.end,
+        player
+      });
+    });
+  });
+
+  // 游戏动作（Socket.IO）
+  socket.on('playerAction', (payload, callback) => {
+    const roomId = resolveGameRoomId(payload || {});
+    if (!roomId) {
+      emitGameError('无效的游戏房间ID', callback);
+      return;
+    }
+
+    isJoinedRoom(roomId, (err, hasAccess) => {
+      if (err) {
+        emitGameError('数据库错误', callback);
+        return;
+      }
+      if (!hasAccess) {
+        emitGameError('你不在这个房间，无法进行游戏操作', callback);
+        return;
+      }
+
+      const roomState = getOrCreateGameRoomState(roomId);
+      if (!roomState.players.has(socket.userId)) {
+        roomState.players.set(socket.userId, createGamePlayer(roomState, socket.username));
+      }
+
+      const player = roomState.players.get(socket.userId);
+      const action = typeof payload?.action === 'string' ? payload.action.trim() : '';
+      if (!action) {
+        emitGameError('缺少 action', callback);
+        return;
+      }
+
+      if (roomState.phase === 'finished') {
+        emitGameError('游戏已结束，正在返回房间', callback);
+        return;
+      }
+
+      const actionKey = action.toLowerCase();
+      const movementByAction = {
+        moveup: { dx: 0, dy: -1 },
+        movedown: { dx: 0, dy: 1 },
+        moveleft: { dx: -1, dy: 0 },
+        moveright: { dx: 1, dy: 0 },
+        w: { dx: 0, dy: -1 },
+        s: { dx: 0, dy: 1 },
+        a: { dx: -1, dy: 0 },
+        d: { dx: 1, dy: 0 },
+        arrowup: { dx: 0, dy: -1 },
+        arrowdown: { dx: 0, dy: 1 },
+        arrowleft: { dx: -1, dy: 0 },
+        arrowright: { dx: 1, dy: 0 }
+      };
+
+      const step = movementByAction[actionKey];
+      if (!step) {
+        emitGameError(`不支持的动作: ${action}`, callback);
+        return;
+      }
+
+      const now = Date.now();
+      const lastMoveAt = Number(player.last_move_at || 0);
+      const elapsed = now - lastMoveAt;
+      if (elapsed < PLAYER_MOVE_INTERVAL_MS) {
+        reply(callback, {
+          ok: true,
+          room_id: roomId,
+          action,
+          throttled: true,
+          wait_ms: PLAYER_MOVE_INTERVAL_MS - elapsed
+        });
+        return;
+      }
+
+      const next = clampToMap(roomState, player.x + step.dx, player.y + step.dy);
+      let moved = false;
+      if (isWalkableCell(roomState, next.x, next.y)) {
+        player.x = next.x;
+        player.y = next.y;
+        player.moves = Number(player.moves || 0) + 1;
+        moved = true;
+      }
+
+      player.last_move_at = now;
+      player.updated_at = new Date().toISOString();
+      roomState.round += 1;
+      roomState.updated_at = new Date().toISOString();
+
+      if (player.x === roomState.end.x && player.y === roomState.end.y) {
+        roomState.phase = 'finished';
+        roomState.winner_user_id = Number(socket.userId);
+        roomState.winner_name = player.nickname || socket.username;
+        const finishMessage = `游戏结束：${roomState.winner_name} 到达终点`;
+        emitGameNotice(roomId, finishMessage);
+        emitGameStateUpdate(roomId, finishMessage);
+        reply(callback, {
+          ok: true,
+          room_id: roomId,
+          action,
+          finished: true
+        });
+        return;
+      }
+
+      const message = moved
+        ? `${player.nickname || socket.username} 向前移动`
+        : `${player.nickname || socket.username} 撞到了墙`;
+      emitGameStateUpdate(roomId, message);
+      reply(callback, { ok: true, room_id: roomId, action });
     });
   });
 
@@ -338,6 +1259,16 @@ io.on('connection', (socket) => {
     console.log(`User disconnected: ${socket.username} (${socket.id})`);
     userConnections.delete(socket.userId);
 
+    const gameRoomId = parseGameRoomId(socket.data.gameRoomId);
+    if (gameRoomId) {
+      socket.data.gameRoomId = null;
+      removePlayerFromGameRoom(gameRoomId, socket.userId);
+      if (hasGameRoomState(gameRoomId)) {
+        emitGameNotice(gameRoomId, `${socket.username} 断开了连接`);
+        emitGameStateUpdate(gameRoomId, `${socket.username} 断开了连接`);
+      }
+    }
+
     // 从所有房间移除用户
     for (const [roomKey, members] of roomMembers.entries()) {
       if (members.has(socket.userId)) {
@@ -351,8 +1282,11 @@ io.on('connection', (socket) => {
           continue;
         }
 
+        clearRoomReadyState(roomId, socket.userId);
+
         // 记录离开事件
         recordRoomEvent(roomId, 'leave');
+        emitRoomLobbyUpdate(roomId);
       }
     }
   });

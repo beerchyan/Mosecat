@@ -20,6 +20,10 @@ createApp({
       roomMembers: [],
       roomMemberCount: 0,
       roomOnlineCount: 0,
+      roomOwnerId: null,
+      roomAllOnlineReady: false,
+      roomOnlineReadyCount: 0,
+      isGameRedirecting: false,
       chatMessages: [],
       messageInput: '',
       loginForm: {
@@ -49,6 +53,25 @@ createApp({
   computed: {
     currentRoomStatusText() {
       return this.currentRoomStatus === 'created' ? '我创建' : '已加入';
+    },
+    currentUserReady() {
+      const selfMember = this.roomMembers.find((member) => member.username === this.currentUser);
+      return !!(selfMember && selfMember.ready);
+    },
+    isCurrentRoomOwner() {
+      if (Number.isInteger(this.roomOwnerId) && this.roomOwnerId > 0) {
+        const selfMember = this.roomMembers.find((member) => member.username === this.currentUser);
+        if (selfMember) {
+          return Number(selfMember.user_id) === Number(this.roomOwnerId);
+        }
+      }
+      return this.currentRoomStatus === 'created';
+    },
+    canStartGame() {
+      return this.isCurrentRoomOwner && this.roomOnlineCount > 0 && this.roomAllOnlineReady;
+    },
+    readyActionText() {
+      return this.currentUserReady ? '取消准备' : '准备';
     }
   },
   methods: {
@@ -104,6 +127,8 @@ createApp({
       this.socket.on('connect', () => {
         if (this.currentRoomId) {
           this.socket.emit('room:join', { room_id: this.currentRoomId });
+          this.loadRoomMembers(this.currentRoomId);
+          this.loadRoomHistory(this.currentRoomId);
         }
       });
 
@@ -122,6 +147,20 @@ createApp({
         this.chatMessages.push(event);
         this.scrollChatToBottom();
         this.loadRoomMembers(this.currentRoomId);
+      });
+
+      this.socket.on('room:lobby:update', (snapshot) => {
+        if (Number(snapshot.room_id) !== Number(this.currentRoomId)) {
+          return;
+        }
+        this.applyRoomLobbySnapshot(snapshot);
+      });
+
+      this.socket.on('room:game:started', (payload) => {
+        if (Number(payload.room_id) !== Number(this.currentRoomId)) {
+          return;
+        }
+        this.goToGamePage(payload);
       });
 
       this.socket.on('error', (error) => {
@@ -178,6 +217,91 @@ createApp({
           resolve(response);
         });
       });
+    },
+    applyRoomLobbySnapshot(snapshot) {
+      if (!snapshot) {
+        return;
+      }
+
+      this.roomMemberCount = Number(snapshot.member_count || 0);
+      this.roomOnlineCount = Number(snapshot.online_count || 0);
+      this.roomOwnerId = Number(snapshot.owner_id || 0) || null;
+      this.roomAllOnlineReady = !!snapshot.all_online_ready;
+      this.roomOnlineReadyCount = Number(snapshot.online_ready_count || 0);
+      this.roomMembers = (snapshot.members || []).map((member) => ({
+        ...member,
+        user_id: Number(member.user_id),
+        online: !!member.online,
+        ready: !!member.ready
+      }));
+    },
+    buildGamePageUrl(rawUrl = '') {
+      const fallback = `/game/?roomId=${this.currentRoomId}`;
+      const target = new URL(rawUrl || fallback, window.location.origin);
+      if (!target.searchParams.get('roomId') && this.currentRoomId) {
+        target.searchParams.set('roomId', String(this.currentRoomId));
+      }
+      if (this.currentRoomName && !target.searchParams.get('roomName')) {
+        target.searchParams.set('roomName', this.currentRoomName);
+      }
+      if (this.currentUser && !target.searchParams.get('nickname')) {
+        target.searchParams.set('nickname', this.currentUser);
+      }
+      if (!target.searchParams.get('autostart')) {
+        target.searchParams.set('autostart', '1');
+      }
+      return target.toString();
+    },
+    goToGamePage(payload = {}) {
+      if (this.isGameRedirecting) {
+        return;
+      }
+      this.isGameRedirecting = true;
+      window.location.href = this.buildGamePageUrl(payload.game_url);
+    },
+    async toggleReady() {
+      if (!this.currentRoomId) {
+        alert('请先选择一个房间');
+        return;
+      }
+
+      try {
+        await this.ensureSocketConnected();
+        const response = await this.emitWithAck('room:ready:set', {
+          room_id: this.currentRoomId,
+          ready: !this.currentUserReady
+        });
+        if (!response || !response.ok) {
+          throw new Error((response && response.message) || '准备状态更新失败');
+        }
+      } catch (error) {
+        alert(error.message || '准备状态更新失败');
+      }
+    },
+    async startGame() {
+      if (!this.currentRoomId) {
+        alert('请先选择一个房间');
+        return;
+      }
+      if (!this.isCurrentRoomOwner) {
+        alert('只有房主可以开始游戏');
+        return;
+      }
+
+      this.isGameRedirecting = false;
+      try {
+        await this.ensureSocketConnected();
+        const response = await this.emitWithAck('room:game:start', {
+          room_id: this.currentRoomId
+        });
+        if (!response || !response.ok) {
+          throw new Error((response && response.message) || '开始游戏失败');
+        }
+        this.goToGamePage(response);
+      } catch (error) {
+        this.isGameRedirecting = false;
+        alert(error.message || '开始游戏失败');
+      }
     },
     startRoomAutoRefresh() {
       this.stopRoomAutoRefresh();
@@ -276,6 +400,7 @@ createApp({
       this.stopRoomAutoRefresh();
       localStorage.removeItem('authToken');
       localStorage.removeItem('currentUser');
+      sessionStorage.removeItem('resumeRoomId');
       this.authToken = '';
       this.currentUser = '';
       this.isAuthenticated = false;
@@ -288,6 +413,10 @@ createApp({
       this.roomMembers = [];
       this.roomMemberCount = 0;
       this.roomOnlineCount = 0;
+      this.roomOwnerId = null;
+      this.roomAllOnlineReady = false;
+      this.roomOnlineReadyCount = 0;
+      this.isGameRedirecting = false;
       this.createdRooms = [];
       this.joinedRooms = [];
       this.isSidebarVisible = true;
@@ -360,8 +489,45 @@ createApp({
         this.createdRooms = (data.createdRooms || []).map(this.normalizeRoom);
         this.joinedRooms = (data.joinedRooms || []).map(this.normalizeRoom);
         this.syncCurrentRoomByRoomList();
+        await this.tryResumeRoomFromStorage();
       } catch (error) {
         console.error('加载房间失败:', error);
+      }
+    },
+    async tryResumeRoomFromStorage() {
+      if (this.currentRoomId) {
+        return;
+      }
+      const queryRoomId = typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('resumeRoomId')
+        : '';
+      const rawRoomId = sessionStorage.getItem('resumeRoomId') || queryRoomId;
+      if (!rawRoomId) {
+        return;
+      }
+
+      const roomId = Number.parseInt(rawRoomId, 10);
+      if (!Number.isInteger(roomId) || roomId <= 0) {
+        sessionStorage.removeItem('resumeRoomId');
+        return;
+      }
+
+      if (queryRoomId && typeof window !== 'undefined') {
+        const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+        window.history.replaceState(null, '', cleanUrl);
+      }
+
+      const createdRoom = this.createdRooms.find((room) => room.id === roomId);
+      if (createdRoom) {
+        sessionStorage.removeItem('resumeRoomId');
+        await this.selectRoom(createdRoom, 'created');
+        return;
+      }
+
+      const joinedRoom = this.joinedRooms.find((room) => room.id === roomId);
+      if (joinedRoom) {
+        sessionStorage.removeItem('resumeRoomId');
+        await this.selectRoom(joinedRoom, 'joined');
       }
     },
     syncCurrentRoomByRoomList() {
@@ -387,6 +553,10 @@ createApp({
       this.roomMembers = [];
       this.roomMemberCount = 0;
       this.roomOnlineCount = 0;
+      this.roomOwnerId = null;
+      this.roomAllOnlineReady = false;
+      this.roomOnlineReadyCount = 0;
+      this.isGameRedirecting = false;
       this.stopRoomAutoRefresh();
       this.isSidebarVisible = true;
     },
@@ -411,6 +581,13 @@ createApp({
       this.currentRoomStatus = status;
       this.chatMessages = [];
       this.messageInput = '';
+      this.roomMembers = [];
+      this.roomMemberCount = 0;
+      this.roomOnlineCount = 0;
+      this.roomOwnerId = null;
+      this.roomAllOnlineReady = false;
+      this.roomOnlineReadyCount = 0;
+      this.isGameRedirecting = false;
 
       this.socket.emit('room:join', { room_id: roomId });
       await Promise.all([this.loadRoomMembers(roomId), this.loadRoomHistory(roomId)]);
@@ -437,13 +614,10 @@ createApp({
         if (!response || !response.ok) {
           return;
         }
-        this.roomMemberCount = Number(response.member_count || 0);
-        this.roomOnlineCount = Number(response.online_count || 0);
-        this.roomMembers = (response.members || []).map((member) => ({
-          ...member,
-          user_id: Number(member.user_id),
-          online: !!member.online
-        }));
+        if (Number(response.room_id) !== Number(this.currentRoomId)) {
+          return;
+        }
+        this.applyRoomLobbySnapshot(response);
         this.updateRoomMemberCount(roomId, this.roomMemberCount);
       } catch (error) {
         console.error('加载成员失败:', error);
@@ -481,6 +655,10 @@ createApp({
           this.roomMembers = [];
           this.roomMemberCount = 0;
           this.roomOnlineCount = 0;
+          this.roomOwnerId = null;
+          this.roomAllOnlineReady = false;
+          this.roomOnlineReadyCount = 0;
+          this.isGameRedirecting = false;
           this.stopRoomAutoRefresh();
           this.isSidebarVisible = true;
         }
@@ -527,6 +705,12 @@ createApp({
           return `${event.username || '用户'} 加入了房间`;
         case 'leave':
           return `${event.username || '用户'} 离开了房间`;
+        case 'ready':
+          return `${event.username || '用户'} 已准备`;
+        case 'unready':
+          return `${event.username || '用户'} 取消了准备`;
+        case 'game_start':
+          return event.content || `${event.username || '房主'} 开始了游戏`;
         case 'online':
           return `${event.username || '用户'} 上线了`;
         default:
