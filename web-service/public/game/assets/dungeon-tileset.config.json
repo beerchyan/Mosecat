@@ -1,0 +1,1313 @@
+{
+  "version": 3,
+  "atlas": {
+    "src": "/game/assets/Dungeon_Tileset.png",
+    "tileWidth": 16,
+    "tileHeight": 16,
+    "columns": 10,
+    "rows": 10,
+    "totalTiles": 100,
+    "indexing": "row-major-0"
+  },
+  "gameObjectToTile": {
+    "wall": {
+      "tileIndex": null,
+      "fallbackGlyph": "#",
+      "variantIndices": [],
+      "mode": "variant",
+      "variantRefs": {
+        "top": "roomWallVariants.types.top",
+        "bottom": "roomWallVariants.types.bottom",
+        "left": "roomWallVariants.types.left",
+        "right": "roomWallVariants.types.right",
+        "cornerTopLeft": "roomWallVariants.types.cornerTopLeft",
+        "cornerTopRight": "roomWallVariants.types.cornerTopRight",
+        "cornerBottomLeft": "roomWallVariants.types.cornerBottomLeft",
+        "cornerBottomRight": "roomWallVariants.types.cornerBottomRight",
+        "fallbackBitmask": "wallBitmaskFallback"
+      }
+    },
+    "floor": {
+      "tileIndex": null,
+      "fallbackGlyph": ".",
+      "variantIndices": []
+    },
+    "roomEdge": {
+      "tileIndex": null,
+      "fallbackGlyph": "rock",
+      "variantIndices": []
+    },
+    "door": {
+      "tileIndex": null,
+      "fallbackGlyph": "door",
+      "variantIndices": []
+    },
+    "player": {
+      "tileIndex": null,
+      "fallbackGlyph": "player",
+      "variantIndices": []
+    },
+    "monster": {
+      "tileIndex": null,
+      "fallbackGlyph": "monster",
+      "variantIndices": []
+    },
+    "item": {
+      "tileIndex": null,
+      "fallbackGlyph": "chest",
+      "variantIndices": []
+    }
+  },
+  "tiles": [
+    {
+      "index": 0,
+      "id": "tile_000",
+      "gridX": 0,
+      "gridY": 0,
+      "pixelX": 0,
+      "pixelY": 0,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 1,
+      "id": "tile_001",
+      "gridX": 1,
+      "gridY": 0,
+      "pixelX": 16,
+      "pixelY": 0,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 2,
+      "id": "tile_002",
+      "gridX": 2,
+      "gridY": 0,
+      "pixelX": 32,
+      "pixelY": 0,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 3,
+      "id": "tile_003",
+      "gridX": 3,
+      "gridY": 0,
+      "pixelX": 48,
+      "pixelY": 0,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 4,
+      "id": "tile_004",
+      "gridX": 4,
+      "gridY": 0,
+      "pixelX": 64,
+      "pixelY": 0,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 5,
+      "id": "tile_005",
+      "gridX": 5,
+      "gridY": 0,
+      "pixelX": 80,
+      "pixelY": 0,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 6,
+      "id": "tile_006",
+      "gridX": 6,
+      "gridY": 0,
+      "pixelX": 96,
+      "pixelY": 0,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 7,
+      "id": "tile_007",
+      "gridX": 7,
+      "gridY": 0,
+      "pixelX": 112,
+      "pixelY": 0,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 8,
+      "id": "tile_008",
+      "gridX": 8,
+      "gridY": 0,
+      "pixelX": 128,
+      "pixelY": 0,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 9,
+      "id": "tile_009",
+      "gridX": 9,
+      "gridY": 0,
+      "pixelX": 144,
+      "pixelY": 0,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 10,
+      "id": "tile_010",
+      "gridX": 0,
+      "gridY": 1,
+      "pixelX": 0,
+      "pixelY": 16,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 11,
+      "id": "tile_011",
+      "gridX": 1,
+      "gridY": 1,
+      "pixelX": 16,
+      "pixelY": 16,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 12,
+      "id": "tile_012",
+      "gridX": 2,
+      "gridY": 1,
+      "pixelX": 32,
+      "pixelY": 16,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 13,
+      "id": "tile_013",
+      "gridX": 3,
+      "gridY": 1,
+      "pixelX": 48,
+      "pixelY": 16,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 14,
+      "id": "tile_014",
+      "gridX": 4,
+      "gridY": 1,
+      "pixelX": 64,
+      "pixelY": 16,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 15,
+      "id": "tile_015",
+      "gridX": 5,
+      "gridY": 1,
+      "pixelX": 80,
+      "pixelY": 16,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 16,
+      "id": "tile_016",
+      "gridX": 6,
+      "gridY": 1,
+      "pixelX": 96,
+      "pixelY": 16,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 17,
+      "id": "tile_017",
+      "gridX": 7,
+      "gridY": 1,
+      "pixelX": 112,
+      "pixelY": 16,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 18,
+      "id": "tile_018",
+      "gridX": 8,
+      "gridY": 1,
+      "pixelX": 128,
+      "pixelY": 16,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 19,
+      "id": "tile_019",
+      "gridX": 9,
+      "gridY": 1,
+      "pixelX": 144,
+      "pixelY": 16,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 20,
+      "id": "tile_020",
+      "gridX": 0,
+      "gridY": 2,
+      "pixelX": 0,
+      "pixelY": 32,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 21,
+      "id": "tile_021",
+      "gridX": 1,
+      "gridY": 2,
+      "pixelX": 16,
+      "pixelY": 32,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 22,
+      "id": "tile_022",
+      "gridX": 2,
+      "gridY": 2,
+      "pixelX": 32,
+      "pixelY": 32,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 23,
+      "id": "tile_023",
+      "gridX": 3,
+      "gridY": 2,
+      "pixelX": 48,
+      "pixelY": 32,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 24,
+      "id": "tile_024",
+      "gridX": 4,
+      "gridY": 2,
+      "pixelX": 64,
+      "pixelY": 32,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 25,
+      "id": "tile_025",
+      "gridX": 5,
+      "gridY": 2,
+      "pixelX": 80,
+      "pixelY": 32,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 26,
+      "id": "tile_026",
+      "gridX": 6,
+      "gridY": 2,
+      "pixelX": 96,
+      "pixelY": 32,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 27,
+      "id": "tile_027",
+      "gridX": 7,
+      "gridY": 2,
+      "pixelX": 112,
+      "pixelY": 32,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 28,
+      "id": "tile_028",
+      "gridX": 8,
+      "gridY": 2,
+      "pixelX": 128,
+      "pixelY": 32,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 29,
+      "id": "tile_029",
+      "gridX": 9,
+      "gridY": 2,
+      "pixelX": 144,
+      "pixelY": 32,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 30,
+      "id": "tile_030",
+      "gridX": 0,
+      "gridY": 3,
+      "pixelX": 0,
+      "pixelY": 48,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 31,
+      "id": "tile_031",
+      "gridX": 1,
+      "gridY": 3,
+      "pixelX": 16,
+      "pixelY": 48,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 32,
+      "id": "tile_032",
+      "gridX": 2,
+      "gridY": 3,
+      "pixelX": 32,
+      "pixelY": 48,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 33,
+      "id": "tile_033",
+      "gridX": 3,
+      "gridY": 3,
+      "pixelX": 48,
+      "pixelY": 48,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 34,
+      "id": "tile_034",
+      "gridX": 4,
+      "gridY": 3,
+      "pixelX": 64,
+      "pixelY": 48,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 35,
+      "id": "tile_035",
+      "gridX": 5,
+      "gridY": 3,
+      "pixelX": 80,
+      "pixelY": 48,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 36,
+      "id": "tile_036",
+      "gridX": 6,
+      "gridY": 3,
+      "pixelX": 96,
+      "pixelY": 48,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 37,
+      "id": "tile_037",
+      "gridX": 7,
+      "gridY": 3,
+      "pixelX": 112,
+      "pixelY": 48,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 38,
+      "id": "tile_038",
+      "gridX": 8,
+      "gridY": 3,
+      "pixelX": 128,
+      "pixelY": 48,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 39,
+      "id": "tile_039",
+      "gridX": 9,
+      "gridY": 3,
+      "pixelX": 144,
+      "pixelY": 48,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 40,
+      "id": "tile_040",
+      "gridX": 0,
+      "gridY": 4,
+      "pixelX": 0,
+      "pixelY": 64,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 41,
+      "id": "tile_041",
+      "gridX": 1,
+      "gridY": 4,
+      "pixelX": 16,
+      "pixelY": 64,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 42,
+      "id": "tile_042",
+      "gridX": 2,
+      "gridY": 4,
+      "pixelX": 32,
+      "pixelY": 64,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 43,
+      "id": "tile_043",
+      "gridX": 3,
+      "gridY": 4,
+      "pixelX": 48,
+      "pixelY": 64,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 44,
+      "id": "tile_044",
+      "gridX": 4,
+      "gridY": 4,
+      "pixelX": 64,
+      "pixelY": 64,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 45,
+      "id": "tile_045",
+      "gridX": 5,
+      "gridY": 4,
+      "pixelX": 80,
+      "pixelY": 64,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 46,
+      "id": "tile_046",
+      "gridX": 6,
+      "gridY": 4,
+      "pixelX": 96,
+      "pixelY": 64,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 47,
+      "id": "tile_047",
+      "gridX": 7,
+      "gridY": 4,
+      "pixelX": 112,
+      "pixelY": 64,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 48,
+      "id": "tile_048",
+      "gridX": 8,
+      "gridY": 4,
+      "pixelX": 128,
+      "pixelY": 64,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 49,
+      "id": "tile_049",
+      "gridX": 9,
+      "gridY": 4,
+      "pixelX": 144,
+      "pixelY": 64,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 50,
+      "id": "tile_050",
+      "gridX": 0,
+      "gridY": 5,
+      "pixelX": 0,
+      "pixelY": 80,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 51,
+      "id": "tile_051",
+      "gridX": 1,
+      "gridY": 5,
+      "pixelX": 16,
+      "pixelY": 80,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 52,
+      "id": "tile_052",
+      "gridX": 2,
+      "gridY": 5,
+      "pixelX": 32,
+      "pixelY": 80,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 53,
+      "id": "tile_053",
+      "gridX": 3,
+      "gridY": 5,
+      "pixelX": 48,
+      "pixelY": 80,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 54,
+      "id": "tile_054",
+      "gridX": 4,
+      "gridY": 5,
+      "pixelX": 64,
+      "pixelY": 80,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 55,
+      "id": "tile_055",
+      "gridX": 5,
+      "gridY": 5,
+      "pixelX": 80,
+      "pixelY": 80,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 56,
+      "id": "tile_056",
+      "gridX": 6,
+      "gridY": 5,
+      "pixelX": 96,
+      "pixelY": 80,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 57,
+      "id": "tile_057",
+      "gridX": 7,
+      "gridY": 5,
+      "pixelX": 112,
+      "pixelY": 80,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 58,
+      "id": "tile_058",
+      "gridX": 8,
+      "gridY": 5,
+      "pixelX": 128,
+      "pixelY": 80,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 59,
+      "id": "tile_059",
+      "gridX": 9,
+      "gridY": 5,
+      "pixelX": 144,
+      "pixelY": 80,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 60,
+      "id": "tile_060",
+      "gridX": 0,
+      "gridY": 6,
+      "pixelX": 0,
+      "pixelY": 96,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 61,
+      "id": "tile_061",
+      "gridX": 1,
+      "gridY": 6,
+      "pixelX": 16,
+      "pixelY": 96,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 62,
+      "id": "tile_062",
+      "gridX": 2,
+      "gridY": 6,
+      "pixelX": 32,
+      "pixelY": 96,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 63,
+      "id": "tile_063",
+      "gridX": 3,
+      "gridY": 6,
+      "pixelX": 48,
+      "pixelY": 96,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 64,
+      "id": "tile_064",
+      "gridX": 4,
+      "gridY": 6,
+      "pixelX": 64,
+      "pixelY": 96,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 65,
+      "id": "tile_065",
+      "gridX": 5,
+      "gridY": 6,
+      "pixelX": 80,
+      "pixelY": 96,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 66,
+      "id": "tile_066",
+      "gridX": 6,
+      "gridY": 6,
+      "pixelX": 96,
+      "pixelY": 96,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 67,
+      "id": "tile_067",
+      "gridX": 7,
+      "gridY": 6,
+      "pixelX": 112,
+      "pixelY": 96,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 68,
+      "id": "tile_068",
+      "gridX": 8,
+      "gridY": 6,
+      "pixelX": 128,
+      "pixelY": 96,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 69,
+      "id": "tile_069",
+      "gridX": 9,
+      "gridY": 6,
+      "pixelX": 144,
+      "pixelY": 96,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 70,
+      "id": "tile_070",
+      "gridX": 0,
+      "gridY": 7,
+      "pixelX": 0,
+      "pixelY": 112,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 71,
+      "id": "tile_071",
+      "gridX": 1,
+      "gridY": 7,
+      "pixelX": 16,
+      "pixelY": 112,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 72,
+      "id": "tile_072",
+      "gridX": 2,
+      "gridY": 7,
+      "pixelX": 32,
+      "pixelY": 112,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 73,
+      "id": "tile_073",
+      "gridX": 3,
+      "gridY": 7,
+      "pixelX": 48,
+      "pixelY": 112,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 74,
+      "id": "tile_074",
+      "gridX": 4,
+      "gridY": 7,
+      "pixelX": 64,
+      "pixelY": 112,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 75,
+      "id": "tile_075",
+      "gridX": 5,
+      "gridY": 7,
+      "pixelX": 80,
+      "pixelY": 112,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 76,
+      "id": "tile_076",
+      "gridX": 6,
+      "gridY": 7,
+      "pixelX": 96,
+      "pixelY": 112,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 77,
+      "id": "tile_077",
+      "gridX": 7,
+      "gridY": 7,
+      "pixelX": 112,
+      "pixelY": 112,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 78,
+      "id": "tile_078",
+      "gridX": 8,
+      "gridY": 7,
+      "pixelX": 128,
+      "pixelY": 112,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 79,
+      "id": "tile_079",
+      "gridX": 9,
+      "gridY": 7,
+      "pixelX": 144,
+      "pixelY": 112,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 80,
+      "id": "tile_080",
+      "gridX": 0,
+      "gridY": 8,
+      "pixelX": 0,
+      "pixelY": 128,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 81,
+      "id": "tile_081",
+      "gridX": 1,
+      "gridY": 8,
+      "pixelX": 16,
+      "pixelY": 128,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 82,
+      "id": "tile_082",
+      "gridX": 2,
+      "gridY": 8,
+      "pixelX": 32,
+      "pixelY": 128,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 83,
+      "id": "tile_083",
+      "gridX": 3,
+      "gridY": 8,
+      "pixelX": 48,
+      "pixelY": 128,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 84,
+      "id": "tile_084",
+      "gridX": 4,
+      "gridY": 8,
+      "pixelX": 64,
+      "pixelY": 128,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 85,
+      "id": "tile_085",
+      "gridX": 5,
+      "gridY": 8,
+      "pixelX": 80,
+      "pixelY": 128,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 86,
+      "id": "tile_086",
+      "gridX": 6,
+      "gridY": 8,
+      "pixelX": 96,
+      "pixelY": 128,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 87,
+      "id": "tile_087",
+      "gridX": 7,
+      "gridY": 8,
+      "pixelX": 112,
+      "pixelY": 128,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 88,
+      "id": "tile_088",
+      "gridX": 8,
+      "gridY": 8,
+      "pixelX": 128,
+      "pixelY": 128,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 89,
+      "id": "tile_089",
+      "gridX": 9,
+      "gridY": 8,
+      "pixelX": 144,
+      "pixelY": 128,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 90,
+      "id": "tile_090",
+      "gridX": 0,
+      "gridY": 9,
+      "pixelX": 0,
+      "pixelY": 144,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 91,
+      "id": "tile_091",
+      "gridX": 1,
+      "gridY": 9,
+      "pixelX": 16,
+      "pixelY": 144,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 92,
+      "id": "tile_092",
+      "gridX": 2,
+      "gridY": 9,
+      "pixelX": 32,
+      "pixelY": 144,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 93,
+      "id": "tile_093",
+      "gridX": 3,
+      "gridY": 9,
+      "pixelX": 48,
+      "pixelY": 144,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 94,
+      "id": "tile_094",
+      "gridX": 4,
+      "gridY": 9,
+      "pixelX": 64,
+      "pixelY": 144,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 95,
+      "id": "tile_095",
+      "gridX": 5,
+      "gridY": 9,
+      "pixelX": 80,
+      "pixelY": 144,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 96,
+      "id": "tile_096",
+      "gridX": 6,
+      "gridY": 9,
+      "pixelX": 96,
+      "pixelY": 144,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 97,
+      "id": "tile_097",
+      "gridX": 7,
+      "gridY": 9,
+      "pixelX": 112,
+      "pixelY": 144,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 98,
+      "id": "tile_098",
+      "gridX": 8,
+      "gridY": 9,
+      "pixelX": 128,
+      "pixelY": 144,
+      "label": "unassigned",
+      "tags": []
+    },
+    {
+      "index": 99,
+      "id": "tile_099",
+      "gridX": 9,
+      "gridY": 9,
+      "pixelX": 144,
+      "pixelY": 144,
+      "label": "unassigned",
+      "tags": []
+    }
+  ],
+  "notes": [
+    "tileIndex 从 0 开始，按 row-major（从左到右、从上到下）。",
+    "建议先填 roomWallVariants（房间墙体与转角），再填 wallBitmaskFallback（通用墙体兜底）。",
+    "room-bounds-priority: 先按房间几何边界判定上/下/左/右墙和四角，再用邻接规则处理非房间墙体。",
+    "支持多切片随机：优先使用 tileIndices（可多个），selection=random；若 tileIndices 为空则回退 tileIndex。"
+  ],
+  "tileRoles": {},
+  "roomWallVariants": {
+    "strategy": "room-bounds-priority",
+    "types": {
+      "top": {
+        "tileIndex": null,
+        "description": "房间上边墙（房间内部在下侧）",
+        "tileIndices": [1,2,3,4],
+        "selection": "random"
+      },
+      "bottom": {
+        "tileIndex": null,
+        "description": "房间下边墙（房间内部在上侧）",
+        "tileIndices": [41,42,43,44],
+        "selection": "random"
+      },
+      "left": {
+        "tileIndex": null,
+        "description": "房间左边墙（房间内部在右侧）",
+        "tileIndices": [10,20,30],
+        "selection": "random"
+      },
+      "right": {
+        "tileIndex": null,
+        "description": "房间右边墙（房间内部在左侧）",
+        "tileIndices": [15,25,35],
+        "selection": "random"
+      },
+      "cornerTopLeft": {
+        "tileIndex": null,
+        "description": "房间左上角转角",
+        "tileIndices": [0],
+        "selection": "random"
+      },
+      "cornerTopRight": {
+        "tileIndex": null,
+        "description": "房间右上角转角",
+        "tileIndices": [5],
+        "selection": "random"
+      },
+      "cornerBottomLeft": {
+        "tileIndex": null,
+        "description": "房间左下角转角",
+        "tileIndices": [40],
+        "selection": "random"
+      },
+      "cornerBottomRight": {
+        "tileIndex": null,
+        "description": "房间右下角转角",
+        "tileIndices": [45],
+        "selection": "random"
+      },
+      "void": {
+        "tileIndex": 78,
+        "description": "非房间边缘墙体（void）",
+        "tileIndices": [78],
+        "selection": "random"
+      }
+    }
+  },
+  "doorVariants": {
+    "types": {
+      "horizontal": {
+        "tileIndex": null,
+        "description": "横向门（连接左右）",
+        "tileIndices": [46],
+        "selection": "random"
+      },
+      "vertical": {
+        "tileIndex": null,
+        "description": "纵向门默认（连接上下，左右贴墙类型未命中时回退）",
+        "tileIndices": [36],
+        "selection": "random"
+      },
+      "verticalNearLeftWall": {
+        "tileIndex": null,
+        "description": "纵向门，靠左墙",
+        "tileIndices": [37],
+        "selection": "random"
+      },
+      "verticalNearRightWall": {
+        "tileIndex": null,
+        "description": "纵向门，靠右墙",
+        "tileIndices": [38],
+        "selection": "random"
+      }
+    }
+  },
+  "floorVariants": {
+    "types": {
+      "room": {
+        "tileIndex": null,
+        "description": "房间地板",
+        "tileIndices": [6,7,8,9,16,17,18,19,26,27,28,29],
+        "selection": "random"
+      },
+      "corridor": {
+        "tileIndex": null,
+        "description": "走廊地板",
+        "tileIndices": [6,7,8,9,16,17,18,19,26,27,28,29],
+        "selection": "random"
+      }
+    }
+  },
+  "wallBitmaskFallback": {
+    "strategy": "cardinal-4bit",
+    "bitOrder": [
+      "N",
+      "E",
+      "S",
+      "W"
+    ],
+    "bitsMeaning": "1 表示该方向相邻是 floor，0 表示不是 floor。",
+    "mapping": {
+      "1000": {
+        "tileIndex": null,
+        "label": "adjacent-floor-north",
+        "tileIndices": [],
+        "selection": "random"
+      },
+      "1001": {
+        "tileIndex": null,
+        "label": "corner-inner-ne",
+        "tileIndices": [],
+        "selection": "random"
+      },
+      "1010": {
+        "tileIndex": null,
+        "label": "vertical-wall",
+        "tileIndices": [],
+        "selection": "random"
+      },
+      "1011": {
+        "tileIndex": null,
+        "label": "tee-open-east",
+        "tileIndices": [],
+        "selection": "random"
+      },
+      "1100": {
+        "tileIndex": null,
+        "label": "corner-inner-nw",
+        "tileIndices": [],
+        "selection": "random"
+      },
+      "1101": {
+        "tileIndex": null,
+        "label": "tee-open-south",
+        "tileIndices": [],
+        "selection": "random"
+      },
+      "1110": {
+        "tileIndex": null,
+        "label": "tee-open-west",
+        "tileIndices": [],
+        "selection": "random"
+      },
+      "1111": {
+        "tileIndex": null,
+        "label": "surrounded-or-cross",
+        "tileIndices": [],
+        "selection": "random"
+      },
+      "0000": {
+        "tileIndex": null,
+        "label": "isolated",
+        "tileIndices": [],
+        "selection": "random"
+      },
+      "0001": {
+        "tileIndex": null,
+        "label": "adjacent-floor-west",
+        "tileIndices": [],
+        "selection": "random"
+      },
+      "0010": {
+        "tileIndex": null,
+        "label": "adjacent-floor-south",
+        "tileIndices": [],
+        "selection": "random"
+      },
+      "0011": {
+        "tileIndex": null,
+        "label": "corner-inner-se",
+        "tileIndices": [],
+        "selection": "random"
+      },
+      "0100": {
+        "tileIndex": null,
+        "label": "adjacent-floor-east",
+        "tileIndices": [],
+        "selection": "random"
+      },
+      "0101": {
+        "tileIndex": null,
+        "label": "horizontal-wall",
+        "tileIndices": [],
+        "selection": "random"
+      },
+      "0110": {
+        "tileIndex": null,
+        "label": "corner-inner-sw",
+        "tileIndices": [],
+        "selection": "random"
+      },
+      "0111": {
+        "tileIndex": null,
+        "label": "tee-open-north",
+        "tileIndices": [],
+        "selection": "random"
+      }
+    }
+  },
+  "objectPlacementRules": {
+    "monster": {
+      "forbidOnDoor": true,
+      "forbidOnRoomEdge": true
+    },
+    "item": {
+      "forbidOnDoor": false,
+      "forbidOnRoomEdge": false
+    }
+  },
+  "renderPriority": [
+    "roomWallVariants",
+    "doorVariants",
+    "wallBitmaskFallback",
+    "floorVariants",
+    "entities"
+  ],
+  "examples": {
+    "topWallRandom": {
+      "description": "top 墙可配置多个切片后随机抽取",
+      "roomWallVariant": {
+        "tileIndex": null,
+        "tileIndices": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "selection": "random"
+      }
+    }
+  }
+}

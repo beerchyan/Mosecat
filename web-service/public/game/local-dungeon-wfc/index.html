@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local Dungeon WFC</title>
+  <style>
+    :root {
+      --bg: #0b1324;
+      --panel: #13203a;
+      --line: #2d466f;
+      --text: #e8f3ff;
+      --sub: #9fb4d2;
+      --accent: #ffb048;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 20% 15%, rgba(45, 90, 148, 0.3), transparent 35%),
+        radial-gradient(circle at 80% 82%, rgba(130, 80, 26, 0.25), transparent 32%),
+        var(--bg);
+      display: grid;
+      grid-template-columns: minmax(320px, 1fr) 360px;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(19, 32, 58, 0.9);
+    }
+
+    #displayWrap {
+      overflow: auto;
+      padding: 10px;
+    }
+
+    #displayRoot {
+      width: fit-content;
+      height: fit-content;
+      border: 1px solid #2e4f7d;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #0d1a32;
+    }
+
+    .side {
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    .sub {
+      margin: 0;
+      color: var(--sub);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(9, 22, 45, 0.8);
+      padding: 8px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .item small {
+      color: var(--sub);
+    }
+
+    .item strong {
+      color: var(--accent);
+      font-size: 16px;
+    }
+
+    .tips {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(9, 22, 45, 0.8);
+      padding: 8px;
+      color: var(--sub);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #1e3e67;
+      color: var(--text);
+      font: inherit;
+      padding: 8px 10px;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      opacity: 0.92;
+    }
+
+    #log {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 6px;
+      max-height: 300px;
+      overflow: auto;
+    }
+
+    #log li {
+      border: 1px solid #2b466c;
+      border-radius: 6px;
+      background: rgba(9, 22, 45, 0.8);
+      padding: 6px 8px;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #cfe4ff;
+    }
+
+    @media (max-width: 1200px) {
+      body {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <section id="displayWrap" class="card">
+    <div id="displayRoot"></div>
+  </section>
+
+  <aside class="card side">
+    <h1>WFC 地牢 60x60</h1>
+    <p class="sub">基于波函数坍缩（WFC）生成地牢。支持图片渲染与符号渲染切换。</p>
+
+    <div class="grid">
+      <div class="item">
+        <small>生成尝试</small>
+        <strong id="attemptsValue">0</strong>
+      </div>
+      <div class="item">
+        <small>冲突次数</small>
+        <strong id="contradictionsValue">0</strong>
+      </div>
+      <div class="item">
+        <small>地板格</small>
+        <strong id="floorValue">0</strong>
+      </div>
+      <div class="item">
+        <small>门格</small>
+        <strong id="doorValue">0</strong>
+      </div>
+      <div class="item">
+        <small>墙格</small>
+        <strong id="wallValue">0</strong>
+      </div>
+      <div class="item">
+        <small>连通区域</small>
+        <strong id="regionValue">0</strong>
+      </div>
+    </div>
+
+    <div class="tips">
+      操作：<br>
+      `R` 重新生成。<br>
+      可切换图片/符号渲染模式。<br>
+      地图路径：`/game/local-dungeon-wfc/`
+    </div>
+
+    <button id="regenBtn" class="btn" type="button">重新生成 (R)</button>
+    <button id="renderModeBtn" class="btn" type="button">切换到符号渲染</button>
+    <a href="/game/" class="btn">返回联机游戏</a>
+    <a href="/game/local-dungeon.html" class="btn">返回 Digger 地牢</a>
+
+    <ul id="log"></ul>
+  </aside>
+
+  <script src="/game/local-dungeon-wfc/main.js"></script>
+</body>
+</html>
